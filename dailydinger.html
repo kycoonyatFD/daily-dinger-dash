@@ -1,0 +1,587 @@
+<!DOCTYPE html><script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Daily Dinger Stats",
+  "schemaVersion": 1,
+  "description": "Daily Dinger Home Run Free-To-Play dashboard — 46 games, DD1848–DD1899 (3/25–4/27/2026). Light high-contrast theme. Per-day chart, MLB team colors on leaderboard, full per-game table."
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Daily Dinger Stats</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f0f4f8; color: #1a2b4a; font-size: 13px; }
+
+.header { background: linear-gradient(135deg, #1a2b4a 0%, #2471a3 100%); color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-sub  { font-size: 10px; opacity: .7; margin-top: 4px; letter-spacing: .2px; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.fd-wordmark { font-size: 21px; font-weight: 900; color: #1493ff; letter-spacing: -.5px; font-style: italic; }
+.fd-sub { font-size: 9px; color: rgba(255,255,255,.5); text-align: right; margin-top: 1px; }
+.badge { background: #f5a623; color: #1a2b4a; font-size: 10px; font-weight: 700; padding: 4px 11px; border-radius: 12px; }
+
+.container { padding: 14px 18px; max-width: 1500px; margin: 0 auto; }
+
+.kpi-row { display: grid; grid-template-columns: repeat(6,1fr); gap: 10px; margin-bottom: 14px; }
+.kpi { background: #fff; border-radius: 10px; padding: 13px 14px; box-shadow: 0 1px 4px rgba(0,0,0,.1); border-top: 3px solid #2471a3; transition: transform .12s; }
+.kpi:hover { transform: translateY(-2px); }
+.kpi.kblue { border-top-color:#2471a3; } .kpi.kgreen { border-top-color:#006a4e; }
+.kpi.kgold  { border-top-color:#c87d0e; } .kpi.kred   { border-top-color:#c0392b; }
+.kpi.kpurp  { border-top-color:#7d3c98; } .kpi.kteal  { border-top-color:#0097a7; }
+.kpi.korange{ border-top-color:#e67e22; }
+.kpi-lbl { font-size: 9px; font-weight: 700; color: #7f8c8d; text-transform: uppercase; letter-spacing: .5px; }
+.kpi-val { font-size: 22px; font-weight: 800; color: #1a2b4a; margin: 5px 0 2px; line-height: 1; }
+.kpi.kgreen .kpi-val{color:#006a4e} .kpi.kgold .kpi-val{color:#c87d0e}
+.kpi.kred .kpi-val{color:#c0392b}   .kpi.kpurp .kpi-val{color:#7d3c98} .kpi.kteal .kpi-val{color:#0097a7}
+.kpi.korange .kpi-val{color:#e67e22}
+.kpi-sub { font-size: 9.5px; color: #95a5a6; }
+
+.card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 5px rgba(0,0,0,.08); }
+.card-title { font-size: 11px; font-weight: 700; color: #1a2b4a; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 12px; padding-bottom: 7px; border-bottom: 2px solid #eaf0fb; display: flex; align-items: center; justify-content: space-between; }
+.card-title span { font-size: 9.5px; font-weight: 400; color: #7f8c8d; text-transform: none; letter-spacing: 0; }
+
+.g-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px; }
+.g-3   { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.g-2   { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+
+.ch { position: relative; width: 100%; }
+.ch-200{height:200px} .ch-220{height:220px} .ch-260{height:260px} .ch-280{height:280px}
+.ch canvas { position: absolute; top:0; left:0; }
+
+.note { background: #fffbea; border: 1px solid #f5a62355; border-radius: 6px; padding: 5px 10px; font-size: 9.5px; color: #9a6700; margin-top: 8px; }
+
+.section-hdr {
+  background: linear-gradient(90deg, #1a2b4a 0%, #2471a3 100%);
+  color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .8px;
+  text-transform: uppercase; padding: 9px 16px; margin: 4px 0 12px;
+  border-radius: 8px; display: flex; align-items: center; gap: 8px;
+}
+.section-hdr .s-badge { background: rgba(255,255,255,.18); border-radius: 4px; padding: 2px 8px; font-size: 9px; font-weight: 400; letter-spacing: .3px; }
+
+.tbl-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid #eaf0fb; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+thead th { background: #1a2b4a; color: #fff; padding: 8px 9px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; text-align: center; }
+thead th.tl { text-align: left; }
+tbody tr:nth-child(even) { background: #f7fafc; }
+tbody tr:hover { background: #d6e4f0; }
+tbody td { padding: 6px 9px; border-bottom: 1px solid #eaf0fb; text-align: center; color: #1a2b4a; vertical-align: middle; }
+tbody td.tl { text-align: left; }
+
+.pill { display: inline-block; padding: 2px 7px; border-radius: 9px; font-size: 9px; font-weight: 700; white-space: nowrap; }
+.p-none { background: #fef3e2; color: #c87d0e; border: 1px solid #f5a62344; }
+.p-hr   { background: #d5f5e3; color: #006a4e; border: 1px solid #00a86b44; }
+.pill-top    { box-shadow: 0 0 0 2px #c87d0e; }
+.pill-cur    { box-shadow: 0 0 0 2px #1a2b4a; }
+.pill-curtop { box-shadow: 0 0 0 2px #c87d0e; font-weight: 900 !important; }
+
+.chk-y { background: #d5f5e3; color: #006a4e; padding: 2px 6px; border-radius: 5px; font-weight: 700; font-size: 9px; }
+.chk-n { background: #fadbd8; color: #c0392b; padding: 2px 6px; border-radius: 5px; font-weight: 700; font-size: 9px; }
+.dd-num { color: #2471a3; font-weight: 700; }
+.wr-hi  { color: #006a4e; font-weight: 700; } .wr-mid { color: #c87d0e; font-weight: 700; } .wr-lo { color: #c0392b; font-weight: 700; }
+.w-count { font-size: 9px; color: #7f8c8d; display: block; margin-top: 2px; }
+
+.ans-details { cursor: pointer; user-select: none; }
+.ans-details summary { list-style: none; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.ans-details summary::-webkit-details-marker { display: none; }
+.ans-more { font-size: 8px; font-weight: 700; color: #2471a3; background: #eaf0fb; border: 1px solid #c5d9f0; border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+.ans-details[open] .ans-more { background: #d0e4f7; }
+.ans-dropdown { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; padding: 6px 0 2px 0; border-top: 1px dashed #d4e4f4; }
+.day-ans-item { display: flex; align-items: center; gap: 5px; }
+.day-ans-dd { font-size: 8px; color: #95a5a6; min-width: 34px; flex-shrink: 0; }
+
+.w-rank-gold   { background: #fffbea; }
+.w-rank-silver { background: #f8f8f8; }
+.w-rank-bronze { background: #fff4ee; }
+.w-medal { font-size: 13px; }
+.win-bar-wrap { width: 60px; height: 6px; background: #eaf0fb; border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 4px; }
+.win-bar { height: 100%; border-radius: 3px; background: #2471a3; }
+
+.rec { width: 100%; border-collapse: collapse; }
+.rec td { padding: 6px 6px; border-bottom: 1px solid #eaf0fb; font-size: 11px; }
+.rec .rl { color: #2471a3; font-weight: 700; width: 40%; }
+.rec .rg { color: #7f8c8d; font-size: 10px; }
+.rec .rv { font-weight: 700; text-align: right; white-space: nowrap; }
+
+.lb { display: flex; flex-direction: column; gap: 4px; }
+.lb-row { display: flex; align-items: center; gap: 7px; padding: 5px 6px; border-radius: 6px; transition: background .1s; }
+.lb-row:hover { background: #f0f4f8; }
+.lb-rank  { width: 22px; font-size: 10px; font-weight: 700; color: #95a5a6; text-align: center; flex-shrink: 0; }
+.lb-badge { width: 32px; height: 20px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; flex-shrink: 0; }
+.lb-name  { flex: 1; font-size: 11px; font-weight: 600; color: #1a2b4a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-bar-wrap { width: 72px; height: 7px; background: #eaf0fb; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+.lb-bar  { height: 100%; border-radius: 4px; }
+.lb-cnt  { width: 66px; text-align: right; font-size: 10px; font-weight: 700; color: #2471a3; flex-shrink: 0; }
+.lb-wins { width: 28px; text-align: center; font-size: 10px; flex-shrink: 0; }
+
+.footer { text-align: center; font-size: 10px; color: #95a5a6; padding: 14px 0 18px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215 68" width="215" height="68" style="flex-shrink:0">
+      <defs>
+        <linearGradient id="txtGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="55%" stop-color="#d4ecff"/>
+          <stop offset="100%" stop-color="#a8d0f0"/>
+        </linearGradient>
+        <filter id="glow"><feGaussianBlur stdDeviation="1.1" result="blur"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
+      </defs>
+      <text x="107" y="25" font-family="'Brush Script MT','Segoe Script',cursive" font-size="25" font-style="italic" fill="url(#txtGrad)" text-anchor="middle" filter="url(#glow)" letter-spacing="2">Daily</text>
+      <text x="107" y="62" font-family="'Brush Script MT','Segoe Script',cursive" font-size="40" font-style="italic" fill="url(#txtGrad)" text-anchor="middle" filter="url(#glow)" letter-spacing="2">Dinger</text>
+    </svg>
+    <div><div class="header-sub">MLB Profit Boost Token Game &nbsp;·&nbsp; DD1848–DD1899 &nbsp;·&nbsp; Mar 25 – Apr 27, 2026 &nbsp;·&nbsp; ✓ 46 games · no duplicates</div></div>
+  </div>
+  <div class="header-right">
+    <div><div class="fd-wordmark">FanDuel</div><div class="fd-sub">× MLB</div></div>
+    <div class="badge">46 GAMES</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="kpi-row">
+    <div class="kpi kblue"><div class="kpi-lbl">Total Entries</div><div class="kpi-val">5,172,883</div><div class="kpi-sub">All 46 games</div></div>
+    <div class="kpi kgreen"><div class="kpi-lbl">Total Winners</div><div class="kpi-val">1,039,935</div><div class="kpi-sub">Avg 22,607 / game</div></div>
+    <div class="kpi kgold"><div class="kpi-lbl">Avg Entries / Game</div><div class="kpi-val">112,454</div><div class="kpi-sub">32 unique game days</div></div>
+    <div class="kpi kteal"><div class="kpi-lbl">Overall Win Rate</div><div class="kpi-val">20.1%</div><div class="kpi-sub">1,039,935 ÷ 5,172,883</div></div>
+    <div class="kpi kpurp"><div class="kpi-lbl">#1 Most Picked</div><div class="kpi-val" style="font-size:14px;margin-top:6px">Aaron Judge</div><div class="kpi-sub">916,497 picks · 7 wins</div></div>
+    <div class="kpi kred"><div class="kpi-lbl">No-HR Games</div><div class="kpi-val">12 / 46</div><div class="kpi-sub">"None" correct 26.1%</div></div>
+  </div>
+
+  <div class="g-2-1">
+    <div class="card">
+      <div class="card-title">Entries &amp; Winners per Day <span>32 game days · ★ = multiple games that day</span></div>
+      <div class="ch ch-280"><canvas id="dayChart"></canvas></div>
+      <div class="note">★ Multi-game days: 3/26 (3 games) · 3/29, 4/1, 4/3, 4/5, 4/8, 4/12, 4/16, 4/19, 4/23, 4/26 (2 games each)</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top 8 Most-Picked Players</div>
+      <div class="ch ch-280"><canvas id="donutChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="g-3">
+    <div class="card">
+      <div class="card-title">Win Rate per Game <span>● green &gt;30% · orange 5–30% · red &lt;5%</span></div>
+      <div class="ch ch-220"><canvas id="winRateChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Winning Answers <span>top categories · 11 one-off wins grouped</span></div>
+      <div class="ch ch-220"><canvas id="winAnsChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Entries Trend <span>bars + 7-game rolling avg</span></div>
+      <div class="ch ch-220"><canvas id="trendChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-title">Per Game Breakdown — All 46 Games
+      <span>⭐ = top pick that day · click answer to expand multi-game days</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>DD #</th><th class="tl">Date / Time (ET)</th>
+            <th>Entries</th><th>Winners</th><th>Win %</th>
+            <th class="tl">Correct Answer(s)</th>
+            <th>Winners Who Picked It</th>
+            <th class="tl">Most Picked Player</th>
+            <th>Picked #</th><th>Picked %</th><th>Correct = Top?</th>
+          </tr>
+        </thead>
+        <tbody id="gtbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="g-2" style="margin-bottom:4px">
+    <div class="card">
+      <div class="card-title">Records &amp; Extremes</div>
+      <table class="rec">
+        <tr><td class="rl">🔼 Most Entries</td><td class="rg">DD 1848 · 3/25 8:05pm</td><td class="rv">194,966</td></tr>
+        <tr><td class="rl">🔽 Fewest Entries</td><td class="rg">DD 1876 · 4/12 7:20pm</td><td class="rv">31,832</td></tr>
+        <tr><td class="rl">🏆 Most Winners</td><td class="rg">DD 1861 · 4/3 1:05pm (Ohtani HR)</td><td class="rv">72,671</td></tr>
+        <tr><td class="rl">📉 Fewest Winners</td><td class="rg">DD 1855 · 3/29 7:20pm (Donovan HR)</td><td class="rv">875</td></tr>
+        <tr><td class="rl">📈 Highest Win Rate</td><td class="rg">DD 1861 · Shohei Ohtani HR</td><td class="rv">73.4%</td></tr>
+        <tr><td class="rl">📉 Lowest Win Rate</td><td class="rg">DD 1855 · Brendan Donovan HR</td><td class="rv">2.0%</td></tr>
+        <tr><td class="rl">⚾ No-HR Games</td><td class="rg">"None" correct in 12 of 46 games</td><td class="rv">26.1%</td></tr>
+        <tr><td class="rl">👑 Most HR Wins</td><td class="rg">Aaron Judge — 7 correct answers</td><td class="rv">★★★★★★★</td></tr>
+        <tr><td class="rl">🥈 2nd Most Wins</td><td class="rg">Shohei Ohtani — 5 correct answers</td><td class="rv">★★★★★</td></tr>
+        <tr><td class="rl">👥 Avg Entries/Game</td><td class="rg">All 46 games</td><td class="rv">112,454</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Player Pick Leaderboard <span>MLB team colors · ✓ = times correct answer</span></div>
+      <div class="lb" id="lb"></div>
+    </div>
+  </div>
+
+  <!-- ── WINNER ANALYSIS ────────────────────────────────────────────── -->
+  <div class="section-hdr">
+    🏆 Winner Analysis — Profit Boost Token Leaderboard
+    <span class="s-badge">926,166 unique users · 429,700 winners · 1,039,935 tokens awarded</span>
+  </div>
+
+  <div class="kpi-row" style="margin-bottom:12px">
+    <div class="kpi kblue"><div class="kpi-lbl">Unique Entrants</div><div class="kpi-val">926,166</div><div class="kpi-sub">Distinct user IDs</div></div>
+    <div class="kpi kgreen"><div class="kpi-lbl">Unique Winners</div><div class="kpi-val">429,700</div><div class="kpi-sub">Won at least 1 token</div></div>
+    <div class="kpi kgold"><div class="kpi-lbl">Tokens Awarded</div><div class="kpi-val">1,039,935</div><div class="kpi-sub">Total across 46 games</div></div>
+    <div class="kpi kpurp"><div class="kpi-lbl">Max Wins (1 User)</div><div class="kpi-val">18 / 46</div><div class="kpi-sub">39.1% of all games</div></div>
+    <div class="kpi korange"><div class="kpi-lbl">Won 5+ Times</div><div class="kpi-val">65,592</div><div class="kpi-sub">15.3% of all winners</div></div>
+    <div class="kpi kred"><div class="kpi-lbl">Won 10+ Times</div><div class="kpi-val">4,422</div><div class="kpi-sub">1.0% of all winners</div></div>
+  </div>
+
+  <div class="g-2-1" style="margin-bottom:12px">
+    <div class="card">
+      <div class="card-title">Win Frequency Distribution
+        <span>bars = users with exactly N wins · line = cumulative % of winners with N+ wins</span>
+      </div>
+      <div class="ch ch-260"><canvas id="winDistChart"></canvas></div>
+      <div class="note">220,302 users won exactly once (51.3%) · Only 1 user won 18 times · Distribution across all 429,700 unique winners</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top 25 — Most Tokens Won <span>out of 46 games</span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>User ID</th>
+              <th>Wins</th>
+              <th>Entered</th>
+              <th>Win %</th>
+            </tr>
+          </thead>
+          <tbody id="wtbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div class="footer">Daily Dinger · FanDuel × MLB · DD1848–DD1899 · March 25 – April 27, 2026 · 46 games · 926,166 unique users · 429,700 unique winners</div>
+
+<script>
+const games = [
+  {dd:1848,label:"3/25 8:05pm",date:"3/25",e:194966,w:20715,c:"None of these players hit a HR",mp:"Aaron Judge",mn:98044,wc:20715},
+  {dd:1849,label:"3/26 1:15pm",date:"3/26",e:187595,w:17338,c:"None of these players hit a HR",mp:"Shohei Ohtani",mn:59341,wc:17338},
+  {dd:1850,label:"3/26 4:10pm",date:"3/26",e:51930, w:14250,c:"Kyle Schwarber",               mp:"Shohei Ohtani",mn:12602,wc:10389},
+  {dd:1851,label:"3/26 8:30pm",date:"3/26",e:72563, w:6019, c:"None of these players hit a HR",mp:"Shohei Ohtani",mn:35344,wc:6019},
+  {dd:1852,label:"3/27 7:07pm",date:"3/27",e:194446,w:11544,c:"Yordan Alvarez",               mp:"Shohei Ohtani",mn:46606,wc:11544},
+  {dd:1853,label:"3/28 7:10pm",date:"3/28",e:189314,w:40345,c:"Aaron Judge",                  mp:"Shohei Ohtani",mn:45065,wc:33772},
+  {dd:1854,label:"3/29 1:35pm",date:"3/29",e:129910,w:1678, c:"Christian Yelich",             mp:"Kyle Schwarber",mn:35869,wc:1678},
+  {dd:1855,label:"3/29 7:20pm",date:"3/29",e:43601, w:875,  c:"Brendan Donovan",              mp:"Cal Raleigh",mn:14332,wc:875},
+  {dd:1856,label:"3/30 7:15pm",date:"3/30",e:164263,w:12899,c:"None of these players hit a HR",mp:"Shohei Ohtani",mn:39891,wc:12899},
+  {dd:1857,label:"3/31 7:07pm",date:"3/31",e:175706,w:7733, c:"Yordan Alvarez",               mp:"Aaron Judge",mn:43210,wc:7733},
+  {dd:1858,label:"4/1 1:05pm", date:"4/1", e:113341,w:13226,c:"None of these players hit a HR",mp:"Aaron Judge",mn:26390,wc:13226},
+  {dd:1859,label:"4/1 8:20pm", date:"4/1", e:75690, w:11589,c:"Jose Ramirez",                 mp:"Shohei Ohtani",mn:37104,wc:7026},
+  {dd:1860,label:"4/2 9:40pm", date:"4/2", e:156433,w:16260,c:"Matt Olson",                   mp:"Juan Soto",mn:33641,wc:16260},
+  {dd:1861,label:"4/3 1:05pm", date:"4/3", e:99008, w:72671,c:"Shohei Ohtani",                mp:"Shohei Ohtani",mn:35625,wc:35625},
+  {dd:1862,label:"4/3 9:38pm", date:"4/3", e:92434, w:10211,c:"None of these players hit a HR",mp:"Cal Raleigh",mn:21271,wc:10211},
+  {dd:1863,label:"4/4 7:05pm", date:"4/4", e:158350,w:13137,c:"None of these players hit a HR",mp:"Aaron Judge",mn:57566,wc:13137},
+  {dd:1864,label:"4/5 1:10pm", date:"4/5", e:117105,w:40701,c:"Shohei Ohtani",                mp:"Shohei Ohtani",mn:35579,wc:35579},
+  {dd:1865,label:"4/5 7:20pm", date:"4/5", e:52000, w:4141, c:"Kerry Carpenter",              mp:"None of these players hit a HR",mn:17708,wc:4141},
+  {dd:1866,label:"4/6 7:07pm", date:"4/6", e:136801,w:63005,c:"Shohei Ohtani",                mp:"Shohei Ohtani",mn:44361,wc:44361},
+  {dd:1867,label:"4/7 4:10pm", date:"4/7", e:122233,w:9365, c:"None of these players hit a HR",mp:"Aaron Judge",mn:38116,wc:9365},
+  {dd:1870,label:"4/8 1:35pm", date:"4/8", e:123536,w:14214,c:"None of these players hit a HR",mp:"Shohei Ohtani",mn:32109,wc:14214},
+  {dd:1871,label:"4/8 7:05pm", date:"4/8", e:36820, w:5500, c:"None of these players hit a HR",mp:"Aaron Judge",mn:16766,wc:5500},
+  {dd:1872,label:"4/9 7:10pm", date:"4/9", e:97839, w:4736, c:"Luis Robert Jr.",              mp:"None of these players hit a HR",mn:26013,wc:4736},
+  {dd:1873,label:"4/10 7:07pm",date:"4/10",e:88439, w:9989, c:"Gunnar Henderson",             mp:"Aaron Judge",mn:30483,wc:9989},
+  {dd:1874,label:"4/11 6:10pm",date:"4/11",e:89984, w:36672,c:"Shohei Ohtani",                mp:"Aaron Judge",mn:31062,wc:36672},
+  {dd:1875,label:"4/12 1:35pm",date:"4/12",e:96251, w:31879,c:"Shohei Ohtani",                mp:"Kyle Schwarber",mn:21661,wc:31879},
+  {dd:1876,label:"4/12 7:20pm",date:"4/12",e:31832, w:8446, c:"None of these players hit a HR",mp:"None of these players hit a HR",mn:8446,wc:8446},
+  {dd:1877,label:"4/13 7:05pm",date:"4/13",e:152103,w:60048,c:"Aaron Judge",                  mp:"Aaron Judge",mn:52868,wc:52868},
+  {dd:1878,label:"4/14 7:05pm",date:"4/14",e:147793,w:11039,c:"None of these players hit a HR",mp:"Aaron Judge",mn:41120,wc:11039},
+  {dd:1879,label:"4/15 7:05pm",date:"4/15",e:138766,w:71222,c:"Aaron Judge",                  mp:"Aaron Judge",mn:40039,wc:40039},
+  {dd:1880,label:"4/16 1:35pm",date:"4/16",e:117243,w:67873,c:"Aaron Judge",                  mp:"Aaron Judge",mn:39521,wc:39521},
+  {dd:1881,label:"4/16 8:10pm",date:"4/16",e:67483, w:3922, c:"Hunter Goodman",               mp:"Yordan Alvarez",mn:16423,wc:3922},
+  {dd:1882,label:"4/17 7:05pm",date:"4/17",e:124724,w:10131,c:"Yordan Alvarez",               mp:"Aaron Judge",mn:34537,wc:10131},
+  {dd:1883,label:"4/18 7:10pm",date:"4/18",e:117460,w:12380,c:"Yordan Alvarez",               mp:"Shohei Ohtani",mn:28442,wc:12380},
+  {dd:1886,label:"4/19 1:35pm",date:"4/19",e:95017, w:34921,c:"Aaron Judge",                  mp:"Aaron Judge",mn:29753,wc:29753},
+  {dd:1887,label:"4/19 7:20pm",date:"4/19",e:35803, w:13311,c:"Kyle Schwarber",               mp:"Kyle Schwarber",mn:13311,wc:13311},
+  {dd:1888,label:"4/20 7:40pm",date:"4/20",e:139267,w:15595,c:"Vladimir Guerrero Jr.",        mp:"Shohei Ohtani",mn:48588,wc:15595},
+  {dd:1890,label:"4/21 6:45pm",date:"4/21",e:132509,w:23994,c:"Kyle Schwarber",               mp:"Aaron Judge",mn:45297,wc:23994},
+  {dd:1892,label:"4/22 6:45pm",date:"4/22",e:140703,w:34152,c:"Matt Olson",                   mp:"Aaron Judge",mn:44631,wc:34152},
+  {dd:1893,label:"4/23 1:05pm",date:"4/23",e:101676,w:20898,c:"James Wood",                   mp:"Kyle Schwarber",mn:25167,wc:20898},
+  {dd:1894,label:"4/23 6:10pm",date:"4/23",e:45972, w:5144, c:"Oneil Cruz",                   mp:"Aaron Judge",mn:21081,wc:5144},
+  {dd:1895,label:"4/24 7:05pm",date:"4/24",e:134093,w:28223,c:"Munetaka Murakami",            mp:"Aaron Judge",mn:20722,wc:28223},
+  {dd:1896,label:"4/25 6:05pm",date:"4/25",e:123923,w:5543, c:"Elly De La Cruz",              mp:"Aaron Judge",mn:28085,wc:5543},
+  {dd:1897,label:"4/26 1:35pm",date:"4/26",e:101071,w:47967,c:"Aaron Judge",                  mp:"Aaron Judge",mn:23828,wc:23828},
+  {dd:1898,label:"4/26 7:20pm",date:"4/26",e:33312, w:16692,c:"Mike Trout",                   mp:"Mike Trout",mn:12665,wc:12665},
+  {dd:1899,label:"4/27 7:07pm",date:"4/27",e:131575,w:57742,c:"Aaron Judge",                  mp:"Aaron Judge",mn:38704,wc:38704},
+];
+
+const top25 = [
+  {rank:1, uid:"47662635",wins:18,entries:38,wr:0.4737},
+  {rank:2, uid:"46939271",wins:17,entries:32,wr:0.5312},
+  {rank:3, uid:"1118416", wins:17,entries:35,wr:0.4857},
+  {rank:4, uid:"6671571", wins:17,entries:38,wr:0.4474},
+  {rank:5, uid:"2204029", wins:17,entries:38,wr:0.4474},
+  {rank:6, uid:"44225996",wins:16,entries:29,wr:0.5517},
+  {rank:7, uid:"550591",  wins:16,entries:34,wr:0.4706},
+  {rank:8, uid:"21453620",wins:16,entries:33,wr:0.4848},
+  {rank:9, uid:"19848780",wins:16,entries:34,wr:0.4706},
+  {rank:10,uid:"374994",  wins:15,entries:43,wr:0.3488},
+  {rank:11,uid:"39330165",wins:15,entries:38,wr:0.3947},
+  {rank:12,uid:"30021273",wins:15,entries:39,wr:0.3846},
+  {rank:13,uid:"45580033",wins:15,entries:34,wr:0.4412},
+  {rank:14,uid:"8240145", wins:15,entries:30,wr:0.5000},
+  {rank:15,uid:"11533527",wins:15,entries:37,wr:0.4054},
+  {rank:16,uid:"13200315",wins:15,entries:37,wr:0.4054},
+  {rank:17,uid:"30924247",wins:15,entries:32,wr:0.4688},
+  {rank:18,uid:"35735172",wins:15,entries:39,wr:0.3846},
+  {rank:19,uid:"1924875", wins:15,entries:41,wr:0.3659},
+  {rank:20,uid:"11128065",wins:15,entries:39,wr:0.3846},
+  {rank:21,uid:"10983032",wins:15,entries:39,wr:0.3846},
+  {rank:22,uid:"25744590",wins:15,entries:37,wr:0.4054},
+  {rank:23,uid:"21076691",wins:15,entries:37,wr:0.4054},
+  {rank:24,uid:"9525636", wins:15,entries:34,wr:0.4412},
+  {rank:25,uid:"21132327",wins:15,entries:36,wr:0.4167},
+];
+
+const winDist = [
+  {w:"1", n:220302, cumPct:100.0},
+  {w:"2", n:73770,  cumPct:48.7},
+  {w:"3", n:41619,  cumPct:31.6},
+  {w:"4", n:28417,  cumPct:21.9},
+  {w:"5", n:21472,  cumPct:15.3},
+  {w:"6", n:15899,  cumPct:10.3},
+  {w:"7", n:11570,  cumPct:6.6},
+  {w:"8", n:7598,   cumPct:3.9},
+  {w:"9", n:4631,   cumPct:2.1},
+  {w:"10",n:2460,   cumPct:1.0},
+  {w:"11+",n:1962,  cumPct:0.46},
+];
+
+const teamClr = {
+  "Aaron Judge":           ["#003087","#ffffff","NYY"],
+  "Shohei Ohtani":         ["#005a9c","#ffffff","LAD"],
+  "Kyle Schwarber":        ["#e81828","#ffffff","PHI"],
+  "Cal Raleigh":           ["#005c5c","#c4ced4","SEA"],
+  "Vladimir Guerrero Jr.": ["#134a8e","#ffffff","TOR"],
+  "Yordan Alvarez":        ["#002d62","#eb6e1f","HOU"],
+  "Juan Soto":             ["#003087","#ffffff","NYY"],
+  "Mike Trout":            ["#ba0021","#ffffff","LAA"],
+  "Munetaka Murakami":     ["#c9102f","#ffffff","YKL"],
+  "Matt Olson":            ["#13274f","#ce1141","ATL"],
+  "None (No HR)":          ["#8c6d37","#ffffff","—" ],
+  "Nick Kurtz":            ["#003831","#efb21e","OAK"],
+};
+
+const topLB = [
+  {p:"Aaron Judge",          t:916497,w:7},
+  {p:"Shohei Ohtani",        t:837814,w:5},
+  {p:"None (No HR)",         t:509997,w:12},
+  {p:"Kyle Schwarber",       t:298398,w:3},
+  {p:"Cal Raleigh",          t:236170,w:0},
+  {p:"Vladimir Guerrero Jr.",t:235627,w:1},
+  {p:"Yordan Alvarez",       t:136359,w:4},
+  {p:"Juan Soto",            t:129168,w:0},
+  {p:"Mike Trout",           t:128760,w:1},
+  {p:"Munetaka Murakami",    t:109420,w:1},
+  {p:"Matt Olson",           t:105497,w:2},
+  {p:"Nick Kurtz",           t:82641, w:0},
+];
+
+const winAnsTop = [
+  {a:"None (No HR)",     n:12,clr:"#f5a623"},
+  {a:"Aaron Judge",      n:7, clr:"#003087"},
+  {a:"Shohei Ohtani",    n:5, clr:"#005a9c"},
+  {a:"Yordan Alvarez",   n:4, clr:"#eb6e1f"},
+  {a:"Kyle Schwarber",   n:3, clr:"#e81828"},
+  {a:"Matt Olson",       n:2, clr:"#ce1141"},
+  {a:"11 other players", n:11,clr:"#95a5a6"},
+];
+
+const dmap = {};
+games.forEach(g => {
+  if (!dmap[g.date]) dmap[g.date] = {e:0,w:0,cnt:0};
+  dmap[g.date].e += g.e; dmap[g.date].w += g.w; dmap[g.date].cnt++;
+});
+function sortDate(a,b){const[am,ad]=a.split('/').map(Number),[bm,bd]=b.split('/').map(Number);return am!==bm?am-bm:ad-bd;}
+const days = Object.keys(dmap).sort(sortDate);
+const multiD = new Set(days.filter(d => dmap[d].cnt > 1));
+
+const dayAnswersMap = {};
+games.forEach(g => {
+  if (!dayAnswersMap[g.date]) dayAnswersMap[g.date] = [];
+  dayAnswersMap[g.date].push({dd:g.dd, c:g.c, wc:g.wc});
+});
+
+function chartLabel(g) {
+  if (!multiD.has(g.date)) return g.date;
+  const t = g.label.split(' ').slice(1).join(' ').replace(/:\d{2}/, '');
+  return g.date + ' ' + t;
+}
+
+function pillHtml(rawName, extraClass) {
+  const isNone = rawName.startsWith('None');
+  const lbl    = isNone ? 'None (No HR)' : rawName;
+  return `<span class="pill ${isNone?'p-none':'p-hr'}${extraClass?' '+extraClass:''}">${lbl}</span>`;
+}
+
+const tbody = document.getElementById('gtbody');
+games.forEach((g, i) => {
+  const wr    = g.w / g.e;
+  const isTop = g.c === g.mp;
+  const star  = multiD.has(g.date) ? '<span style="color:#c87d0e;font-size:9px"> ★</span>' : '';
+  const wrCls = wr > 0.3 ? 'wr-hi' : wr < 0.05 ? 'wr-lo' : 'wr-mid';
+  const wcPct = (g.wc / g.e * 100).toFixed(1);
+  const dayGames = dayAnswersMap[g.date];
+  const maxWc    = Math.max(...dayGames.map(x => x.wc));
+  let ansCell;
+  if (dayGames.length === 1) {
+    ansCell = pillHtml(g.c, '');
+  } else {
+    const topGame    = dayGames.reduce((b,x) => x.wc > b.wc ? x : b, dayGames[0]);
+    const otherCount = dayGames.length - 1;
+    const items = dayGames.map(x => {
+      const isCur     = x.dd === g.dd;
+      const isTopPick = x.wc === maxWc;
+      let ec = '';
+      if (isCur && isTopPick) ec = 'pill-curtop';
+      else if (isCur)         ec = 'pill-cur';
+      else if (isTopPick)     ec = 'pill-top';
+      const xNone = x.c.startsWith('None');
+      const xLbl  = xNone ? 'None (No HR)' : x.c;
+      return `<div class="day-ans-item"><span class="day-ans-dd">DD${x.dd}</span><span class="pill ${xNone?'p-none':'p-hr'}${ec?' '+ec:''}">${xLbl}${isTopPick?' ⭐':''}</span></div>`;
+    }).join('');
+    ansCell = `<details class="ans-details"><summary>${pillHtml(topGame.c,'pill-top')} ⭐<span class="ans-more">+${otherCount} more ▾</span></summary><div class="ans-dropdown">${items}</div></details>`;
+  }
+  const mpName = g.mp.startsWith('None') ? 'None (No HR)' : g.mp;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${i+1}</td><td class="dd-num">DD${g.dd}</td><td class="tl">${g.label}${star}</td><td><strong>${g.e.toLocaleString()}</strong></td><td style="color:#006a4e;font-weight:700">${g.w.toLocaleString()}</td><td class="${wrCls}">${(wr*100).toFixed(1)}%</td><td class="tl">${ansCell}</td><td><strong>${g.wc.toLocaleString()}</strong><span class="w-count">${wcPct}% of entries</span></td><td class="tl" style="font-size:10.5px">${mpName}</td><td>${g.mn.toLocaleString()}</td><td>${(g.mn/g.e*100).toFixed(1)}%</td><td><span class="${isTop?'chk-y':'chk-n'}">${isTop?'✓ YES':'✗ NO'}</span></td>`;
+  tbody.appendChild(tr);
+});
+
+const lbEl = document.getElementById('lb');
+const maxT  = topLB[0].t;
+topLB.forEach((p, i) => {
+  const c   = teamClr[p.p] || ["#2471a3","#fff","—"];
+  const bar = (p.t/maxT*100).toFixed(1);
+  const medals = ['🥇','🥈','🥉'];
+  const div = document.createElement('div'); div.className = 'lb-row';
+  div.innerHTML = `<div class="lb-rank">${i<3?medals[i]:i+1}</div><div class="lb-badge" style="background:${c[0]};color:${c[1]}">${c[2]}</div><div class="lb-name">${p.p}</div><div class="lb-bar-wrap"><div class="lb-bar" style="width:${bar}%;background:${c[0]}"></div></div><div class="lb-cnt">${p.t.toLocaleString()}</div><div class="lb-wins">${p.w>0?`<strong style="color:#006a4e">${p.w}✓</strong>`:'<span style="color:#bdc3c7">—</span>'}</div>`;
+  lbEl.appendChild(div);
+});
+
+const wtbody = document.getElementById('wtbody');
+const medals = ['🥇','🥈','🥉'];
+const rowColors = ['w-rank-gold','w-rank-silver','w-rank-bronze'];
+top25.forEach(p => {
+  const tr  = document.createElement('tr');
+  if (p.rank <= 3) tr.className = rowColors[p.rank-1];
+  const wrColor = p.wr >= 0.5 ? '#006a4e' : p.wr >= 0.4 ? '#2471a3' : '#c87d0e';
+  const barW = (p.wins / 18 * 100).toFixed(0);
+  tr.innerHTML = `
+    <td><strong>${p.rank <= 3 ? medals[p.rank-1] : p.rank}</strong></td>
+    <td style="font-family:monospace;font-size:10px;font-weight:700;color:#1a2b4a">${p.uid}</td>
+    <td>
+      <strong style="color:#006a4e;font-size:12px">${p.wins}</strong>
+      <span style="font-size:8px;color:#95a5a6"> /46</span>
+      <span class="win-bar-wrap"><span class="win-bar" style="width:${barW}%"></span></span>
+    </td>
+    <td style="color:#7f8c8d;font-size:10px">${p.entries}</td>
+    <td style="font-weight:700;color:${wrColor}">${(p.wr*100).toFixed(1)}%</td>`;
+  wtbody.appendChild(tr);
+});
+
+Chart.defaults.font.family = 'Arial';
+Chart.defaults.color = '#4a6080';
+
+new Chart(document.getElementById('dayChart'),{
+  type:'bar',
+  data:{
+    labels:days.map(d=>multiD.has(d)?d+' ★':d),
+    datasets:[
+      {label:'Total Entries',data:days.map(d=>dmap[d].e),backgroundColor:'rgba(36,113,163,0.72)',borderColor:'#2471a3',borderWidth:1,borderRadius:3,order:2},
+      {label:'Winners',      data:days.map(d=>dmap[d].w),backgroundColor:'rgba(0,106,78,0.82)',  borderColor:'#006a4e',borderWidth:1,borderRadius:3,order:1},
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'top',labels:{font:{size:10},boxWidth:12,padding:8}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.raw.toLocaleString()}`}}},
+    scales:{x:{ticks:{font:{size:8.5},maxRotation:50,color:'#4a6080'},grid:{color:'#e2eaf2'}},y:{ticks:{font:{size:9},callback:v=>(v/1000).toFixed(0)+'K',color:'#4a6080'},grid:{color:'#e2eaf2'}}}}
+});
+
+new Chart(document.getElementById('donutChart'),{
+  type:'doughnut',
+  data:{
+    labels:['Aaron Judge','Shohei Ohtani','None (No HR)','Kyle Schwarber','Cal Raleigh','V. Guerrero Jr.','Yordan Alvarez','Juan Soto'],
+    datasets:[{data:[916497,837814,509997,298398,236170,235627,136359,129168],backgroundColor:['#003087','#005a9c','#f5a623','#e81828','#005c5c','#134a8e','#002d62','#4a7ab5'],borderColor:'#fff',borderWidth:2}]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'bottom',labels:{font:{size:9.5},boxWidth:12,padding:6}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw.toLocaleString()} (${(ctx.raw/5172883*100).toFixed(1)}%)`}}}}
+});
+
+new Chart(document.getElementById('winRateChart'),{
+  type:'line',
+  data:{
+    labels:games.map(g=>chartLabel(g)),
+    datasets:[{label:'Win Rate %',data:games.map(g=>+(g.w/g.e*100).toFixed(2)),
+      borderColor:'#2471a3',backgroundColor:'rgba(36,113,163,0.07)',
+      pointBackgroundColor:games.map(g=>{const r=g.w/g.e;return r>0.3?'#006a4e':r<0.05?'#c0392b':'#c87d0e'}),
+      pointBorderColor:'#fff',pointBorderWidth:1.5,pointRadius:4,fill:true,tension:0.3,borderWidth:2}]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` Win Rate: ${ctx.raw}%`}}},
+    scales:{x:{ticks:{font:{size:7.5},maxRotation:55,color:'#4a6080'},grid:{color:'#e2eaf2'}},y:{ticks:{font:{size:9},callback:v=>v+'%',color:'#4a6080'},grid:{color:'#e2eaf2'}}}}
+});
+
+new Chart(document.getElementById('winAnsChart'),{
+  type:'bar',
+  data:{
+    labels:winAnsTop.map(a=>a.a),
+    datasets:[{label:'Times Correct',data:winAnsTop.map(a=>a.n),backgroundColor:winAnsTop.map(a=>a.clr+'cc'),borderColor:winAnsTop.map(a=>a.clr),borderWidth:1.5,borderRadius:4}]
+  },
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.raw} game${ctx.raw!==1?'s':''}`}}},
+    scales:{x:{ticks:{font:{size:9},stepSize:1,color:'#4a6080'},grid:{color:'#e2eaf2'}},y:{ticks:{font:{size:10},color:'#1a2b4a'},grid:{display:false}}}}
+});
+
+new Chart(document.getElementById('trendChart'),{
+  type:'bar',
+  data:{
+    labels:games.map(g=>chartLabel(g)),
+    datasets:[
+      {type:'bar', label:'Entries',   data:games.map(g=>g.e),backgroundColor:'rgba(36,113,163,0.45)',borderColor:'#2471a3',borderWidth:1,borderRadius:2,order:2},
+      {type:'line',label:'7-game avg',data:games.map((_,i,arr)=>{const sl=arr.slice(Math.max(0,i-3),i+4);return Math.round(sl.reduce((s,x)=>s+x.e,0)/sl.length);}),borderColor:'#f5a623',backgroundColor:'transparent',borderDash:[5,3],tension:0.4,borderWidth:2.5,pointRadius:0,order:1}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'top',labels:{font:{size:9.5},boxWidth:12,padding:6}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.raw.toLocaleString()}`}}},
+    scales:{x:{ticks:{font:{size:7.5},maxRotation:55,color:'#4a6080'},grid:{color:'#e2eaf2'}},y:{ticks:{font:{size:9},callback:v=>(v/1000).toFixed(0)+'K',color:'#4a6080'},grid:{color:'#e2eaf2'}}}}
+});
+
+new Chart(document.getElementById('winDistChart'),{
+  type:'bar',
+  data:{
+    labels: winDist.map(d=>d.w + (d.w==='11+'?'':' win'+(d.w==='1'?'':'s'))),
+    datasets:[
+      {type:'bar',label:'Users with exactly N wins',data:winDist.map(d=>d.n),backgroundColor:'rgba(36,113,163,0.7)',borderColor:'#2471a3',borderWidth:1,borderRadius:4,yAxisID:'y',order:2},
+      {type:'line',label:'Cumulative % (N+ wins)',data:winDist.map(d=>d.cumPct),borderColor:'#e67e22',backgroundColor:'rgba(230,126,34,0.08)',borderWidth:2.5,pointBackgroundColor:'#e67e22',pointBorderColor:'#fff',pointBorderWidth:1.5,pointRadius:4,fill:true,tension:0.35,yAxisID:'y2',order:1}
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{
+      legend:{position:'top',labels:{font:{size:9.5},boxWidth:12,padding:8}},
+      tooltip:{callbacks:{label:ctx=>{if(ctx.datasetIndex===0)return ` ${ctx.raw.toLocaleString()} users`;return ` ${ctx.raw.toFixed(1)}% won ${ctx.label.split(' ')[0]}+ times`;}}}
+    },
+    scales:{
+      x:{ticks:{font:{size:9.5},color:'#4a6080'},grid:{color:'#e2eaf2'}},
+      y:{position:'left',ticks:{font:{size:9},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v,color:'#4a6080'},grid:{color:'#e2eaf2'},title:{display:true,text:'# of Users',font:{size:9},color:'#7f8c8d'}},
+      y2:{position:'right',min:0,max:100,ticks:{font:{size:9},callback:v=>v+'%',color:'#e67e22'},grid:{drawOnChartArea:false},title:{display:true,text:'Cumulative %',font:{size:9},color:'#e67e22'}}
+    }
+  }
+});
+</script>
+</body>
